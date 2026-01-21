@@ -6,16 +6,50 @@
   <style>
     body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
     canvas { display: block; margin: 1rem 0; }
-    input, button { font-size: 1rem; padding: 0.5rem; }
-    input { width: 100%; box-sizing: border-box; }
-    button { margin-top: 0.5rem; cursor: pointer; }
+    label { display: block; margin-top: 1rem; font-weight: 500; }
+    input, select { font-size: 1rem; padding: 0.5rem; margin-top: 0.25rem; }
+    input[type="text"], input[type="number"] { width: 100%; box-sizing: border-box; }
+    input[type="color"] { width: 60px; height: 2rem; padding: 0; cursor: pointer; }
+    .row { display: flex; gap: 1rem; }
+    .row > div { flex: 1; }
+    button { font-size: 1rem; padding: 0.5rem 1rem; margin-top: 1rem; cursor: pointer; }
+    #output { margin-top: 1rem; }
   </style>
 </head>
 <body>
   <h1>qr-canvas-js</h1>
   <p>Minimal, zero-dependency QR code generator for canvas.</p>
 
-  <input type="text" id="input" value="https://example.com" placeholder="Enter text or URL">
+  <label>Text or URL
+    <input type="text" id="input" value="https://example.com">
+  </label>
+
+  <div class="row">
+    <div>
+      <label>Scale
+        <input type="number" id="scale" value="8" min="1" max="20">
+      </label>
+    </div>
+    <div>
+      <label>Margin
+        <input type="number" id="margin" value="2" min="0" max="10">
+      </label>
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Dark color
+        <input type="color" id="dark" value="#000000">
+      </label>
+    </div>
+    <div>
+      <label>Light color
+        <input type="color" id="light" value="#ffffff">
+      </label>
+    </div>
+  </div>
+
   <button onclick="generate()">Generate QR Code</button>
 
   <div id="output"></div>
@@ -25,18 +59,22 @@
 
     function generate() {
       const text = document.getElementById('input').value;
+      const scale = parseInt(document.getElementById('scale').value) || 8;
+      const margin = parseInt(document.getElementById('margin').value) || 2;
+      const dark = document.getElementById('dark').value;
+      const light = document.getElementById('light').value;
+
       const output = document.getElementById('output');
       output.innerHTML = '';
 
       try {
-        const canvas = qrCanvas(text, { scale: 8, margin: 2 });
+        const canvas = qrCanvas(text, { scale, margin, dark, light });
         output.appendChild(canvas);
       } catch (e) {
         output.innerHTML = `<p style="color: red;">${e.message}</p>`;
       }
     }
 
-    // Make generate available globally and run on load
     window.generate = generate;
     generate();
   </script>
