@@ -23,7 +23,7 @@ document.body.appendChild(canvas);
 ### Script Tag
 
 ```html
-<script src="dist/qr-canvas.iife.js"></script>
+<script src="dist/qr-canvas.min.js"></script>
 <script>
   const canvas = QRCanvas.qrCanvas('https://example.com', {
     scale: 8,
