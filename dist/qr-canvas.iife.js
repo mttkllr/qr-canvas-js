@@ -1,5 +1,6 @@
 /**
- * qr-canvas-js - Minimal, zero-dependency QR code generator for canvas
+ * qr-canvas-js v1.0.0
+ * Minimal, zero-dependency QR code generator for canvas
  * https://github.com/mttkllr/qr-canvas-js
  * @license MIT
  */
