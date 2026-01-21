@@ -35,6 +35,11 @@
         <input type="number" id="margin" value="2" min="0" max="10">
       </label>
     </div>
+    <div>
+      <label>Width (px)
+        <input type="number" id="width" placeholder="auto" min="50" max="500">
+      </label>
+    </div>
   </div>
 
   <div class="row">
@@ -61,6 +66,8 @@
       const text = document.getElementById('input').value;
       const scale = parseInt(document.getElementById('scale').value) || 8;
       const margin = parseInt(document.getElementById('margin').value) || 2;
+      const widthInput = document.getElementById('width').value;
+      const width = widthInput ? parseInt(widthInput) : undefined;
       const dark = document.getElementById('dark').value;
       const light = document.getElementById('light').value;
 
@@ -68,7 +75,11 @@
       output.innerHTML = '';
 
       try {
-        const canvas = qrCanvas(text, { scale, margin, dark, light });
+        const opts = { margin, dark, light };
+        if (width) opts.width = width;
+        else opts.scale = scale;
+
+        const canvas = qrCanvas(text, opts);
         output.appendChild(canvas);
       } catch (e) {
         output.innerHTML = `<p style="color: red;">${e.message}</p>`;

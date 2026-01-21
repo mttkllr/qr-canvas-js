@@ -7,6 +7,7 @@ Minimal, zero-dependency QR code generator for canvas.
 - Supports QR versions 1-4 (up to 78 bytes of data)
 - ECC Level L
 - UTF-8 encoding (Byte mode)
+- TypeScript definitions included
 
 ## Usage
 
@@ -22,14 +23,11 @@ document.body.appendChild(canvas);
 ### Script Tag
 
 ```html
-<script type="module">
-  import { qrCanvas } from './src/qr-canvas.js';
-
-  const canvas = qrCanvas('Hello, World!', {
+<script src="dist/qr-canvas.iife.js"></script>
+<script>
+  const canvas = QRCanvas.qrCanvas('https://example.com', {
     scale: 8,
-    margin: 2,
-    dark: '#000',
-    light: '#fff'
+    margin: 2
   });
   document.body.appendChild(canvas);
 </script>
@@ -44,6 +42,10 @@ document.body.appendChild(canvas);
 | `width` | number | - | Target width in pixels (overrides scale) |
 | `dark` | string | `"#000"` | Dark module color (CSS) |
 | `light` | string | `"#fff"` | Light module color (CSS) |
+
+## Example
+
+See `example.html` for an interactive demo.
 
 ## Limitations
 

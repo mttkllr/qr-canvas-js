@@ -5,14 +5,17 @@
   "type": "module",
   "main": "src/qr-canvas.js",
   "module": "src/qr-canvas.js",
+  "types": "src/qr-canvas.d.ts",
   "exports": {
     ".": {
       "import": "./src/qr-canvas.js",
+      "types": "./src/qr-canvas.d.ts",
       "default": "./src/qr-canvas.js"
     }
   },
   "files": [
-    "src"
+    "src",
+    "dist"
   ],
   "keywords": [
     "qr",
