@@ -127,7 +127,6 @@ function qrMake(text) {
     // Build module matrix with function patterns, then place codewords, mask, add format info
     const m = qrInitMatrix(ver.size);
     qrDrawFunctionPatterns(m, ver.v);
-
     qrPlaceCodewords(m, codewords);
 
     // Choose a mask (0..7) with lowest penalty
