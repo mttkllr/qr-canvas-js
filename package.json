@@ -1,0 +1,30 @@
+{
+  "name": "qr-canvas-js",
+  "version": "1.0.0",
+  "description": "Minimal, zero-dependency QR code generator for canvas",
+  "type": "module",
+  "main": "src/qr-canvas.js",
+  "module": "src/qr-canvas.js",
+  "exports": {
+    ".": {
+      "import": "./src/qr-canvas.js",
+      "default": "./src/qr-canvas.js"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "qr",
+    "qrcode",
+    "qr-code",
+    "canvas",
+    "generator"
+  ],
+  "author": "Matthew Keller",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mttkllr/qr-canvas-js.git"
+  }
+}
