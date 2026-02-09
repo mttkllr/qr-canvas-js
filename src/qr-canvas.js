@@ -1,5 +1,5 @@
 /**
- * Minimal dependency-free QR Code generator (Byte mode), versions 1–4, ECC Level L.
+ * Minimal dependency-free QR Code generator (Byte mode), versions 1–10, ECC Level L.
  * Renders to a <canvas>.
  *
  * Usage:
@@ -15,7 +15,11 @@
  */
 
 export function qrCanvas(text, opts = {}) {
+    if (typeof text !== "string") throw new TypeError("text must be a string");
+
     const margin = opts.margin ?? 4;
+    if (margin < 0) throw new RangeError("margin must be >= 0");
+
     const dark = opts.dark ?? "#000";
     const light = opts.light ?? "#fff";
 
@@ -23,9 +27,11 @@ export function qrCanvas(text, opts = {}) {
     const size = qr.size;
 
     let scale = opts.scale ?? 6;
+    if (opts.scale !== undefined && opts.scale <= 0) throw new RangeError("scale must be > 0");
     let px;
 
     if (opts.width) {
+        if (opts.width <= 0) throw new RangeError("width must be > 0");
         px = opts.width;
         scale = px / (size + margin * 2);
     } else {
@@ -58,30 +64,47 @@ export function qrCanvas(text, opts = {}) {
     return canvas;
 }
 
+/**
+ * Generate QR code data as a raw matrix (no canvas required).
+ * @param {string} text - The text or URL to encode
+ * @returns {{ size: number, modules: boolean[][] }}
+ */
+export function qrMatrix(text) {
+    if (typeof text !== "string") throw new TypeError("text must be a string");
+    const qr = qrMake(text);
+    return { size: qr.size, modules: qr.modules };
+}
+
 /* ---------------------------- Core QR builder ---------------------------- */
 
 function qrMake(text) {
     // Encode as UTF-8 bytes (Byte mode)
     const dataBytes = utf8Bytes(text);
 
-    // Capacity (Version 1–4, Level L) in bytes for Byte mode:
-    // V1: 17, V2: 32, V3: 53, V4: 78
+    // Version table: versions 1–10, Level L
+    // { v, size, totalDataCW, capacity, eccPerBlock, g1Blocks, g1DataCW, g2Blocks, g2DataCW }
     const versions = [
-        { v: 1, size: 21, dataCodewords: 19, dataBytesCapacity: 17, eccCodewords: 7 },
-        { v: 2, size: 25, dataCodewords: 34, dataBytesCapacity: 32, eccCodewords: 10 },
-        { v: 3, size: 29, dataCodewords: 55, dataBytesCapacity: 53, eccCodewords: 15 },
-        { v: 4, size: 33, dataCodewords: 80, dataBytesCapacity: 78, eccCodewords: 20 },
+        { v: 1,  size: 21, totalDataCW: 19,  capacity: 17,  eccPerBlock: 7,  g1Blocks: 1, g1DataCW: 19,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 2,  size: 25, totalDataCW: 34,  capacity: 32,  eccPerBlock: 10, g1Blocks: 1, g1DataCW: 34,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 3,  size: 29, totalDataCW: 55,  capacity: 53,  eccPerBlock: 15, g1Blocks: 1, g1DataCW: 55,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 4,  size: 33, totalDataCW: 80,  capacity: 78,  eccPerBlock: 20, g1Blocks: 1, g1DataCW: 80,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 5,  size: 37, totalDataCW: 108, capacity: 106, eccPerBlock: 26, g1Blocks: 1, g1DataCW: 108, g2Blocks: 0, g2DataCW: 0 },
+        { v: 6,  size: 41, totalDataCW: 136, capacity: 134, eccPerBlock: 18, g1Blocks: 2, g1DataCW: 68,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 7,  size: 45, totalDataCW: 156, capacity: 154, eccPerBlock: 20, g1Blocks: 2, g1DataCW: 78,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 8,  size: 49, totalDataCW: 194, capacity: 192, eccPerBlock: 24, g1Blocks: 2, g1DataCW: 97,  g2Blocks: 0, g2DataCW: 0 },
+        { v: 9,  size: 53, totalDataCW: 232, capacity: 230, eccPerBlock: 30, g1Blocks: 2, g1DataCW: 116, g2Blocks: 0, g2DataCW: 0 },
+        { v: 10, size: 57, totalDataCW: 274, capacity: 271, eccPerBlock: 18, g1Blocks: 2, g1DataCW: 68,  g2Blocks: 2, g2DataCW: 69 },
     ];
 
     let ver = null;
     for (const cand of versions) {
-        if (dataBytes.length <= cand.dataBytesCapacity) {
+        if (dataBytes.length <= cand.capacity) {
             ver = cand;
             break;
         }
     }
     if (!ver) {
-        throw new Error("Input too long for this minimal generator (supports up to version 4-L).");
+        throw new Error("Input too long (max ~271 bytes at version 10-L).");
     }
 
     // Build bit stream: [Mode=0100][Count][Data][Terminator][Pad to byte][Pad codewords]
@@ -90,13 +113,14 @@ function qrMake(text) {
     pushBits(bits, 0b0100, 4);
 
     // Character count indicator bits for Byte mode:
-    // Version 1–9 uses 8 bits
-    pushBits(bits, dataBytes.length, 8);
+    // Version 1–9 uses 8 bits, version 10+ uses 16 bits
+    const countBits = ver.v <= 9 ? 8 : 16;
+    pushBits(bits, dataBytes.length, countBits);
 
     for (const b of dataBytes) pushBits(bits, b, 8);
 
     // Terminator up to 4 zeros
-    const totalDataBits = ver.dataCodewords * 8;
+    const totalDataBits = ver.totalDataCW * 8;
     const remaining = totalDataBits - bits.length;
     if (remaining > 0) pushBits(bits, 0, Math.min(4, remaining));
 
@@ -114,15 +138,12 @@ function qrMake(text) {
     // Pad codewords alternating 0xEC, 0x11
     const pads = [0xEC, 0x11];
     let pi = 0;
-    while (dataCodewords.length < ver.dataCodewords) {
+    while (dataCodewords.length < ver.totalDataCW) {
         dataCodewords.push(pads[pi++ & 1]);
     }
 
-    // Reed-Solomon ECC (single block for these versions at Level L)
-    const ecc = rsComputeEcc(dataCodewords, ver.eccCodewords);
-
-    // Final codewords = data + ecc
-    const codewords = dataCodewords.concat(ecc);
+    // Reed-Solomon ECC with block interleaving
+    const codewords = computeInterleavedCodewords(dataCodewords, ver);
 
     // Build module matrix with function patterns, then place codewords, mask, add format info
     const m = qrInitMatrix(ver.size);
@@ -138,6 +159,7 @@ function qrMake(text) {
         const trial = qrCloneMatrix(m);
         qrApplyMask(trial, mask);
         qrWriteFormatInfo(trial, mask); // Level L, mask
+        if (ver.v >= 7) qrWriteVersionInfo(trial, ver.v);
         const score = qrPenaltyScore(trial);
         if (score < bestScore) {
             bestScore = score;
@@ -147,6 +169,55 @@ function qrMake(text) {
     }
 
     return { size: ver.size, modules: bestModules.modules };
+}
+
+/* ------------------- Block interleaving for RS-ECC ------------------- */
+
+function computeInterleavedCodewords(dataCodewords, ver) {
+    const totalBlocks = ver.g1Blocks + ver.g2Blocks;
+
+    // Single block: no interleaving needed
+    if (totalBlocks === 1) {
+        const ecc = rsComputeEcc(dataCodewords, ver.eccPerBlock);
+        return dataCodewords.concat(ecc);
+    }
+
+    // Split data into blocks
+    const blocks = [];
+    let offset = 0;
+
+    for (let i = 0; i < ver.g1Blocks; i++) {
+        blocks.push(dataCodewords.slice(offset, offset + ver.g1DataCW));
+        offset += ver.g1DataCW;
+    }
+    for (let i = 0; i < ver.g2Blocks; i++) {
+        blocks.push(dataCodewords.slice(offset, offset + ver.g2DataCW));
+        offset += ver.g2DataCW;
+    }
+
+    // Compute ECC for each block
+    const eccBlocks = blocks.map(block => rsComputeEcc(block, ver.eccPerBlock));
+
+    // Interleave data codewords (round-robin across blocks)
+    const maxDataLen = Math.max(ver.g1DataCW, ver.g2DataCW || 0);
+    const interleavedData = [];
+    for (let i = 0; i < maxDataLen; i++) {
+        for (let b = 0; b < totalBlocks; b++) {
+            if (i < blocks[b].length) {
+                interleavedData.push(blocks[b][i]);
+            }
+        }
+    }
+
+    // Interleave ECC codewords (all blocks have same ECC length)
+    const interleavedEcc = [];
+    for (let i = 0; i < ver.eccPerBlock; i++) {
+        for (let b = 0; b < totalBlocks; b++) {
+            interleavedEcc.push(eccBlocks[b][i]);
+        }
+    }
+
+    return interleavedData.concat(interleavedEcc);
 }
 
 /* ---------------------------- Matrix structure ---------------------------- */
@@ -210,7 +281,7 @@ function qrDrawFunctionPatterns(m, version) {
     // Bottom-Left (Vertical): Col 8, Rows size-7 .. size-1
     for (let y = size - 7; y < size; y++) m.reserved[y][8] = true;
 
-    // Alignment patterns for versions 2–4
+    // Alignment patterns
     const alignPos = alignmentPositions(version);
     if (alignPos.length) {
         for (const y of alignPos) {
@@ -225,7 +296,21 @@ function qrDrawFunctionPatterns(m, version) {
         }
     }
 
-    // Reserve version info (not needed for v < 7)
+    // Reserve version info areas for v >= 7
+    if (version >= 7) {
+        // Bottom-left area: cols 0..5, rows (size-11)..(size-9)
+        for (let x = 0; x < 6; x++) {
+            for (let y = size - 11; y <= size - 9; y++) {
+                m.reserved[y][x] = true;
+            }
+        }
+        // Top-right area: cols (size-11)..(size-9), rows 0..5
+        for (let x = size - 11; x <= size - 9; x++) {
+            for (let y = 0; y < 6; y++) {
+                m.reserved[y][x] = true;
+            }
+        }
+    }
 }
 
 function drawFinder(m, x0, y0) {
@@ -261,15 +346,14 @@ function drawAlignment(m, x0, y0) {
 }
 
 function alignmentPositions(version) {
-    // For v=1: none
-    // v=2: [6, 18]
-    // v=3: [6, 22]
-    // v=4: [6, 26]
     if (version === 1) return [];
-    if (version === 2) return [6, 18];
-    if (version === 3) return [6, 22];
-    if (version === 4) return [6, 26];
-    return [];
+    const size = version * 4 + 17;
+    const numAlign = Math.floor(version / 7) + 2;
+    const step = Math.floor((version * 8 + numAlign * 3 + 5) / (numAlign * 4 - 4)) * 2;
+    const result = [6];
+    for (let pos = size - 7; result.length < numAlign; pos -= step)
+        result.splice(1, 0, pos);
+    return result;
 }
 
 /* ---------------------------- Data placement ---------------------------- */
@@ -385,6 +469,29 @@ function qrWriteFormatInfo(m, mask) {
         const [x2, y2] = positions2[i];
         m.modules[y2][x2] = bit;
         m.reserved[y2][x2] = true;
+    }
+}
+
+/* ---------------------- Version info for v >= 7 ---------------------- */
+
+function qrWriteVersionInfo(m, version) {
+    // BCH(18,6) with generator polynomial 0x1F25
+    let bits = (version << 12) | bchRemainder(version, 0x1F25, 12);
+
+    const size = m.size;
+
+    for (let i = 0; i < 18; i++) {
+        const bit = ((bits >>> i) & 1) === 1;
+        const row = Math.floor(i / 3);
+        const col = (size - 11) + (i % 3);
+
+        // Top-right block: rows 0..5, cols (size-11)..(size-9)
+        m.modules[row][col] = bit;
+        m.reserved[row][col] = true;
+
+        // Bottom-left block: cols 0..5, rows (size-11)..(size-9)
+        m.modules[col][row] = bit;
+        m.reserved[col][row] = true;
     }
 }
 
@@ -533,13 +640,11 @@ function gfPow(a, n) {
     return GF_EXP[(GF_LOG[a] * n) % 255];
 }
 
-/* ---------------------------- BCH for format info ---------------------------- */
+/* ---------------------------- BCH for format/version info ---------------------------- */
 
 function bchRemainder(value, poly, polyDegree) {
-    // value is 5-bit format (ec+mask)
-    // poly is 0b10100110111 (degree 10)
     let v = value << polyDegree;
-    for (let i = 14; i >= polyDegree; i--) {
+    for (let i = 17; i >= polyDegree; i--) {
         if (v & (1 << i)) v ^= (poly << (i - polyDegree));
     }
     return v & ((1 << polyDegree) - 1);
@@ -551,7 +656,7 @@ function pushBits(arr, value, count) {
     for (let i = count - 1; i >= 0; i--) arr.push((value >>> i) & 1);
 }
 
-function utf8Bytes(str) {
+export function utf8Bytes(str) {
     const out = [];
     for (let i = 0; i < str.length; i++) {
         let code = str.charCodeAt(i);

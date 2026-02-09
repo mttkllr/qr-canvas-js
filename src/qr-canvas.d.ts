@@ -17,8 +17,27 @@ export interface QrCanvasOptions {
  * @param text - The text or URL to encode
  * @param opts - Optional configuration
  * @returns A canvas element containing the QR code
- * @throws Error if text is too long (max ~78 bytes for version 4-L)
+ * @throws {TypeError} If text is not a string
+ * @throws {Error} If text is too long (max ~271 bytes for version 10-L)
  */
 export function qrCanvas(text: string, opts?: QrCanvasOptions): HTMLCanvasElement;
+
+/**
+ * Generate QR code data as a raw module matrix (no canvas required).
+ *
+ * @param text - The text or URL to encode
+ * @returns The QR code size and 2D boolean matrix
+ * @throws {TypeError} If text is not a string
+ * @throws {Error} If text is too long (max ~271 bytes for version 10-L)
+ */
+export function qrMatrix(text: string): { size: number; modules: boolean[][] };
+
+/**
+ * Encode a string as UTF-8 bytes.
+ *
+ * @param str - The string to encode
+ * @returns Array of byte values
+ */
+export function utf8Bytes(str: string): number[];
 
 export default qrCanvas;
