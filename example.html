@@ -59,34 +59,33 @@
 
   <div id="output"></div>
 
-  <script type="module">
-    import { qrCanvas } from './src/qr-canvas.js';
-
+  <!-- Run "npm run build" first to generate the dist bundle -->
+  <script src="dist/qr-canvas.iife.js"></script>
+  <script>
     function generate() {
-      const text = document.getElementById('input').value;
-      const scale = parseInt(document.getElementById('scale').value) || 8;
-      const margin = parseInt(document.getElementById('margin').value) || 2;
-      const widthInput = document.getElementById('width').value;
-      const width = widthInput ? parseInt(widthInput) : undefined;
-      const dark = document.getElementById('dark').value;
-      const light = document.getElementById('light').value;
+      var text = document.getElementById('input').value;
+      var scale = parseInt(document.getElementById('scale').value) || 8;
+      var margin = parseInt(document.getElementById('margin').value) || 2;
+      var widthInput = document.getElementById('width').value;
+      var width = widthInput ? parseInt(widthInput) : undefined;
+      var dark = document.getElementById('dark').value;
+      var light = document.getElementById('light').value;
 
-      const output = document.getElementById('output');
+      var output = document.getElementById('output');
       output.innerHTML = '';
 
       try {
-        const opts = { margin, dark, light };
+        var opts = { margin: margin, dark: dark, light: light };
         if (width) opts.width = width;
         else opts.scale = scale;
 
-        const canvas = qrCanvas(text, opts);
+        var canvas = QRCanvas.qrCanvas(text, opts);
         output.appendChild(canvas);
       } catch (e) {
-        output.innerHTML = `<p style="color: red;">${e.message}</p>`;
+        output.innerHTML = '<p style="color: red;">' + e.message + '</p>';
       }
     }
 
-    window.generate = generate;
     generate();
   </script>
 </body>
